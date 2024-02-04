@@ -17,7 +17,7 @@ int main (int argc, char *argv[]) {
     size_t nsize = 100;
 
     char *pathnames[MAX_PATHS];
-    pathnames[0] = "/usr/bin";
+    pathnames[0] = "/bin";
     int num_paths = 1;
     //for (int i = 0; i < num_paths; i++) printf("%s\t", pathnames[i]);
 
