@@ -9,13 +9,19 @@
 #define MAX_LENGTH 100
 
 int main (int argc, char *argv[]) {
-
+    // general variables
     bool batch_mode = false;
-    bool valid_path = false;
-    char *command_line;
     char exec_path[MAX_LENGTH];
     size_t nsize = 100;
 
+    // variables used in creating execv args
+    bool first_arg = true;
+    char *command_line = NULL;
+    char *arg;
+    int counter = 0;
+    char *arglist[MAX_LENGTH];
+
+    // variables to track exec paths
     char *pathnames[MAX_PATHS];
     pathnames[0] = "/bin";
     int num_paths = 1;
@@ -24,30 +30,50 @@ int main (int argc, char *argv[]) {
     if (argc > 1) batch_mode = true;
 
     while (!batch_mode) {
-        valid_path = false;
+        // Reset variables
+        counter = 0;
+        first_arg = true;
         printf("wish> ");
 
+        // Try to read command
         if (getline(&command_line, &nsize, stdin) == -1) {
             char error_message[30] = "An error has occurred\n";
             write(STDERR_FILENO, error_message, strlen(error_message)); 
         } else {
             command_line[strcspn(command_line, "\n")] = '\0';
         }
+        
+        // Separate command into args
+        while ((arg = strsep(&command_line, " ")) != NULL) {
+            if (first_arg) {
+                first_arg = false;
+                for (int i = 0; i < num_paths; i++) {
+                    strcpy(exec_path, pathnames[i]);
+                    strcat(exec_path, "/");
+                    strcat(exec_path, arg);
 
-        for (int i = 0; i < num_paths; i++) {
-            strcpy(exec_path, pathnames[i]);
-            strcat(exec_path, "/");
-            strcat(exec_path, command_line);
+                    if (access(exec_path, F_OK) == 0) {
+                        break;
+                    } 
+                }
+            }
 
-            if (access(exec_path, F_OK) == 0) {
-                if ("file exists\n");
-                valid_path = true;
-                break;
-            } 
+            arglist[counter++] = strdup(arg);
+            
         }
+        arglist[counter] = NULL;
 
-        //if (!valid_path) continue;
+        //  USED TO DEBUG execv args
+        //printf("exec_path = %s\t", exec_path);
+        //printf("Arguments are:\t");
+        //int j = 0;
+        //while (arglist[j] != NULL) {
+        //    printf("%s ",arglist[j++]);
+        //}
+        //printf("\n");
 
+
+        // Proceed to execute command
         int rc = fork();
 
         if (rc < 0) {
@@ -55,13 +81,13 @@ int main (int argc, char *argv[]) {
             write(STDERR_FILENO, error_message, strlen(error_message));
             exit(1);
         } else if (rc == 0) {
-            execv(exec_path, NULL);
+            execv(exec_path, arglist);
         } else {
             wait(NULL);
         }
 
     }
 
-    free(command_line);
+    if (command_line) free(command_line);
     return 0;
 }
