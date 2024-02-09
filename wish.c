@@ -25,14 +25,17 @@ int main (int argc, char *argv[]) {
     char *pathnames[MAX_PATHS];
     pathnames[0] = "/bin";
     int num_paths = 1;
+    bool valid_path = false;
     //for (int i = 0; i < num_paths; i++) printf("%s\t", pathnames[i]);
 
     if (argc > 1) batch_mode = true;
 
     while (!batch_mode) {
         // Reset variables
+        exec_path[0] = '\0';
         counter = 0;
         first_arg = true;
+        valid_path = false;
         printf("wish> ");
 
         // Try to read command
@@ -45,7 +48,21 @@ int main (int argc, char *argv[]) {
         
         // Separate command into args
         while ((arg = strsep(&command_line, " ")) != NULL) {
+
             if (first_arg) {
+                // In-built Exit command
+
+                //printf("strcmp = %d\n",strcmp(arg, "exit"));
+                //char *second_arg = strsep(&command_line, " ");
+                //printf("second_arg = %s\n", second_arg);
+
+                if (!strcmp(arg, "exit") && (strsep(&command_line, " ") == NULL)) {
+                    if (command_line) free(command_line);
+                    exit(0);
+                }
+                
+
+                // Attempt to find executable filepath
                 first_arg = false;
                 for (int i = 0; i < num_paths; i++) {
                     strcpy(exec_path, pathnames[i]);
@@ -53,6 +70,7 @@ int main (int argc, char *argv[]) {
                     strcat(exec_path, arg);
 
                     if (access(exec_path, F_OK) == 0) {
+                        valid_path = true;
                         break;
                     } 
                 }
@@ -72,6 +90,7 @@ int main (int argc, char *argv[]) {
         //}
         //printf("\n");
 
+        if (!valid_path) continue;
 
         // Proceed to execute command
         int rc = fork();
@@ -88,6 +107,5 @@ int main (int argc, char *argv[]) {
 
     }
 
-    if (command_line) free(command_line);
     return 0;
 }
