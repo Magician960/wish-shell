@@ -11,6 +11,7 @@
 int main (int argc, char *argv[]) {
     // general variables
     bool batch_mode = false;
+    bool out_redirect = false;
     char exec_path[MAX_LENGTH];
     size_t nsize = 100;
 
@@ -20,6 +21,7 @@ int main (int argc, char *argv[]) {
     char *arg;
     int counter = 0;
     char *arglist[MAX_LENGTH];
+    char *newout;
 
     // variables to track exec paths
     char *pathnames[MAX_PATHS];
@@ -36,6 +38,7 @@ int main (int argc, char *argv[]) {
         counter = 0;
         first_arg = true;
         valid_path = false;
+        out_redirect = false;
         printf("wish> ");
 
         // Try to read command
@@ -48,6 +51,12 @@ int main (int argc, char *argv[]) {
         
         // Separate command into args
         while ((arg = strsep(&command_line, " ")) != NULL) {
+
+            // Detect stdout redirection
+            if (!strcmp(arg, ">")) {
+                out_redirect = true;
+                break;
+            }
 
             if (first_arg) {
                 // In-built Exit command
@@ -100,6 +109,17 @@ int main (int argc, char *argv[]) {
             write(STDERR_FILENO, error_message, strlen(error_message));
             exit(1);
         } else if (rc == 0) {
+
+            // Handle out redirection
+            if (out_redirect) {
+                
+                // Check for invalid redirection syntax
+                if ((newout = strsep(&command_line, " ")) == NULL ||
+                (arg = strsep(&command_line, " ")) != NULL) exit(1);
+
+                freopen(newout, "w", stdout);
+            }
+
             execv(exec_path, arglist);
         } else {
             wait(NULL);
