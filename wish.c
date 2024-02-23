@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <assert.h>
 
 #define MAX_PATHS 32
 #define MAX_LENGTH 100
@@ -12,8 +13,12 @@ int main (int argc, char *argv[]) {
     // general variables
     bool batch_mode = false;
     bool out_redirect = false;
+    bool in_built_cmd = false;
     char exec_path[MAX_LENGTH];
-    size_t nsize = 100;
+    char cwd[MAX_LENGTH];
+    size_t nsize = MAX_LENGTH;
+    char *newcwd;
+
 
     // variables used in creating execv args
     bool first_arg = true;
@@ -39,7 +44,10 @@ int main (int argc, char *argv[]) {
         first_arg = true;
         valid_path = false;
         out_redirect = false;
-        printf("wish> ");
+        in_built_cmd = false;
+        getcwd(cwd, MAX_LENGTH);
+    
+        printf("wish ~%s> ", cwd);
 
         // Try to read command
         if (getline(&command_line, &nsize, stdin) == -1) {
@@ -69,8 +77,17 @@ int main (int argc, char *argv[]) {
                     if (command_line) free(command_line);
                     exit(0);
                 }
-                
 
+                // In-built cd command
+
+                if  (!strcmp(arg, "cd") && 
+                    (newcwd = strsep(&command_line, " ")) != NULL && 
+                    (strsep(&command_line, " ") == NULL)) 
+                {
+                    assert(chdir(newcwd) == 0); 
+                    in_built_cmd = true;
+                }
+                
                 // Attempt to find executable filepath
                 first_arg = false;
                 for (int i = 0; i < num_paths; i++) {
@@ -100,6 +117,7 @@ int main (int argc, char *argv[]) {
         //printf("\n");
 
         if (!valid_path) continue;
+        if (in_built_cmd) continue;
 
         // Proceed to execute command
         int rc = fork();
