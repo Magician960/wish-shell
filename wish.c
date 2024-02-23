@@ -28,10 +28,12 @@ int main (int argc, char *argv[]) {
     char *arglist[MAX_LENGTH];
     char *newout;
 
-    // variables to track exec paths
+    // variables to track exec paths & initialise exec paths
     char *pathnames[MAX_PATHS];
-    pathnames[0] = "/bin";
+    pathnames[0] = malloc(sizeof(char) * (strlen("/bin") + 1));
+    pathnames[0] = strcpy(pathnames[0], "/bin");
     int num_paths = 1;
+    int num_paths_max = 1;
     bool valid_path = false;
     //for (int i = 0; i < num_paths; i++) printf("%s\t", pathnames[i]);
 
@@ -75,6 +77,10 @@ int main (int argc, char *argv[]) {
 
                 if (!strcmp(arg, "exit") && (strsep(&command_line, " ") == NULL)) {
                     if (command_line) free(command_line);
+                    // Free exec path strings
+                    for (int i = 0; i < num_paths_max; i++) {
+                        free(pathnames[i]);
+                    }
                     exit(0);
                 }
 
@@ -86,6 +92,27 @@ int main (int argc, char *argv[]) {
                 {
                     assert(chdir(newcwd) == 0); 
                     in_built_cmd = true;
+                    break;
+                }
+
+                // In-built path command
+                if (!strcmp(arg, "path")) {
+                    num_paths = 0;
+
+                    while ((arg = strsep(&command_line, " ")) != NULL) {
+                        if (num_paths >= num_paths_max) {
+                            pathnames[num_paths] = malloc(sizeof(char) * (strlen(arg) + 1));
+                        } else {
+                            pathnames[num_paths] = realloc(pathnames[num_paths], sizeof(char) * (strlen(arg) + 1));
+                        }
+                        pathnames[num_paths] = strcpy(pathnames[num_paths], arg);
+                        num_paths++;
+
+                        if (num_paths > num_paths_max) num_paths_max = num_paths;
+                    }
+                
+                    in_built_cmd = true;
+                    break;
                 }
                 
                 // Attempt to find executable filepath
