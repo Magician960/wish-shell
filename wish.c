@@ -37,9 +37,18 @@ int main (int argc, char *argv[]) {
     bool valid_path = false;
     //for (int i = 0; i < num_paths; i++) printf("%s\t", pathnames[i]);
 
-    if (argc > 1) batch_mode = true;
+    if (argc > 2) {
+        printf("Usage: ./wish [optional: input file]\n");
+        exit(1);
+    } else if (argc == 2) {
+        if (freopen(argv[1], "r", stdin) == NULL) {
+            printf("Error reading input file\n");
+            exit(1);
+        }
+        batch_mode = true;
+    }
 
-    while (!batch_mode) {
+    while (true) {
         // Reset variables
         exec_path[0] = '\0';
         counter = 0;
@@ -49,7 +58,7 @@ int main (int argc, char *argv[]) {
         in_built_cmd = false;
         getcwd(cwd, MAX_LENGTH);
     
-        printf("wish ~%s> ", cwd);
+        if (!batch_mode) printf("wish ~%s> ", cwd);
 
         // Try to read command
         if (getline(&command_line, &nsize, stdin) == -1) {
