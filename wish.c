@@ -8,16 +8,24 @@
 
 #define MAX_PATHS 32
 #define MAX_LENGTH 100
+#define MAX_PROCESSES 10
 
 int main (int argc, char *argv[]) {
     // general variables
     bool batch_mode = false;
-    bool out_redirect = false;
+    bool out_redirect[MAX_PROCESSES];
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        out_redirect[i] = false;
+    }
     bool in_built_cmd = false;
-    char exec_path[MAX_LENGTH];
+    char exec_path[MAX_PROCESSES][MAX_LENGTH];
     char cwd[MAX_LENGTH];
     size_t nsize = MAX_LENGTH;
     char *newcwd;
+
+    // variables for parallel commands
+    int process_num = 0;
+    int max_process_num = 0;
 
 
     // variables used in creating execv args
@@ -25,8 +33,13 @@ int main (int argc, char *argv[]) {
     char *command_line = NULL;
     char *arg;
     int counter = 0;
-    char *arglist[MAX_LENGTH];
-    char *newout;
+    char *arglist[MAX_PROCESSES][MAX_LENGTH];
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        for (int j = 0; j < MAX_LENGTH; j++) {
+            arglist[i][j] = NULL;
+        }
+    }
+    char *newout[MAX_PROCESSES];
 
     // variables to track exec paths & initialise exec paths
     char *pathnames[MAX_PATHS];
@@ -50,11 +63,14 @@ int main (int argc, char *argv[]) {
 
     while (true) {
         // Reset variables
-        exec_path[0] = '\0';
+        for (int i = 0; i <= max_process_num; i++) {
+            exec_path[i][0] = '\0';
+            out_redirect[i] = false;
+        }
         counter = 0;
+        process_num = 0;
         first_arg = true;
-        valid_path = false;
-        out_redirect = false;
+        valid_path = true;
         in_built_cmd = false;
         getcwd(cwd, MAX_LENGTH);
     
@@ -68,13 +84,28 @@ int main (int argc, char *argv[]) {
             command_line[strcspn(command_line, "\n")] = '\0';
         }
         
-        // Separate command into args
+        // Separate command into args and parse
         while ((arg = strsep(&command_line, " ")) != NULL) {
 
             // Detect stdout redirection
             if (!strcmp(arg, ">")) {
-                out_redirect = true;
-                break;
+                out_redirect[process_num] = true;
+                // Check for invalid redirection syntax
+                if ((newout[process_num] = strsep(&command_line, " ")) == NULL) {
+                    exit(1);
+                }
+                continue;
+            }
+
+            // Detect parallel commands
+            if (!strcmp(arg, "&")) {
+                arglist[process_num][counter] = NULL;
+                counter = 0;
+                first_arg = true;
+                process_num++;
+
+                if (process_num > max_process_num) max_process_num = process_num;
+                continue;
             }
 
             if (first_arg) {
@@ -89,6 +120,12 @@ int main (int argc, char *argv[]) {
                     // Free exec path strings
                     for (int i = 0; i < num_paths_max; i++) {
                         free(pathnames[i]);
+                    }
+                    // Free arglist
+                    for (int i = 0; i < MAX_PROCESSES; i++) {
+                        for (int j = 0; j < MAX_LENGTH; j++) {
+                            if (arglist[i][j] != NULL) free(arglist[i][j]);
+                        }
                     }
                     exit(0);
                 }
@@ -127,21 +164,21 @@ int main (int argc, char *argv[]) {
                 // Attempt to find executable filepath
                 first_arg = false;
                 for (int i = 0; i < num_paths; i++) {
-                    strcpy(exec_path, pathnames[i]);
-                    strcat(exec_path, "/");
-                    strcat(exec_path, arg);
+                    strcpy(exec_path[process_num], pathnames[i]);
+                    strcat(exec_path[process_num], "/");
+                    strcat(exec_path[process_num], arg);
 
-                    if (access(exec_path, F_OK) == 0) {
-                        valid_path = true;
+                    if (access(exec_path[process_num], F_OK) != 0) {
+                        valid_path = false;
                         break;
                     } 
                 }
             }
 
-            arglist[counter++] = strdup(arg);
+            arglist[process_num][counter++] = strdup(arg);
             
         }
-        arglist[counter] = NULL;
+        arglist[process_num][counter] = NULL;
 
         //  USED TO DEBUG execv args
         //printf("exec_path = %s\t", exec_path);
@@ -155,29 +192,43 @@ int main (int argc, char *argv[]) {
         if (!valid_path) continue;
         if (in_built_cmd) continue;
 
-        // Proceed to execute command
-        int rc = fork();
+        // Proceed to execute command(s)
 
-        if (rc < 0) {
-            char error_message[30] = "An error has occurred\n";
-            write(STDERR_FILENO, error_message, strlen(error_message));
-            exit(1);
-        } else if (rc == 0) {
+        for (int i = 0; i <= process_num; i++) {
+            if (fork() == 0) {
+                // Handle out redirection
+                if (out_redirect[i]) {
+                    freopen(newout[i], "w", stdout);
+                }
+
+                execv(exec_path[i], arglist[i]);     
+            }
+        }
+
+        while (wait(NULL) > 0);
+
+        //int rc = fork();
+
+        //if (rc < 0) {
+        //    char error_message[30] = "An error has occurred\n";
+        //    write(STDERR_FILENO, error_message, strlen(error_message));
+        //    exit(1);
+        //} else if (rc == 0) {
 
             // Handle out redirection
-            if (out_redirect) {
+        //    if (out_redirect) {
                 
                 // Check for invalid redirection syntax
-                if ((newout = strsep(&command_line, " ")) == NULL ||
-                (arg = strsep(&command_line, " ")) != NULL) exit(1);
+        //        if ((newout = strsep(&command_line, " ")) == NULL ||
+        //        (arg = strsep(&command_line, " ")) != NULL) exit(1);
 
-                freopen(newout, "w", stdout);
-            }
+        //        freopen(newout, "w", stdout);
+        //    }
 
-            execv(exec_path, arglist);
-        } else {
-            wait(NULL);
-        }
+        //    execv(exec_path[process_num], arglist[process_num]);
+        //} else {
+        //    wait(NULL);
+        //}
 
     }
 
