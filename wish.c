@@ -78,8 +78,9 @@ int main (int argc, char *argv[]) {
 
         // Try to read command
         if (getline(&command_line, &nsize, stdin) == -1) {
-            char error_message[30] = "An error has occurred\n";
-            write(STDERR_FILENO, error_message, strlen(error_message)); 
+            char error_message[30] = "EOF detected, exiting program\n";
+            write(STDERR_FILENO, error_message, strlen(error_message));
+            exit(0);
         } else {
             command_line[strcspn(command_line, "\n")] = '\0';
         }
