@@ -10,25 +10,6 @@
 #define MAX_LENGTH 100
 #define MAX_PROCESSES 10
 
-// GLOBAL VARIABLES
-char *arglist[MAX_PROCESSES][MAX_LENGTH];
-
-void EXIT_COMMAND(char *command_line, char *pathnames[], int num_paths_max) {
-    if (command_line) free(command_line);
-    // Free exec path strings
-    for (int i = 0; i < num_paths_max; i++) {
-        free(pathnames[i]);
-    }
-    // Free arglist
-    for (int i = 0; i < MAX_PROCESSES; i++) {
-        for (int j = 0; j < MAX_LENGTH; j++) {
-            if (arglist[i][j] != NULL) free(arglist[i][j]);
-        }
-    }
-                    
-    exit(0);
-}
-
 int main (int argc, char *argv[]) {
     // general variables
     bool batch_mode = false;
@@ -52,6 +33,7 @@ int main (int argc, char *argv[]) {
     char *command_line = NULL;
     char *arg;
     int counter = 0;
+    char *arglist[MAX_PROCESSES][MAX_LENGTH];
     for (int i = 0; i < MAX_PROCESSES; i++) {
         for (int j = 0; j < MAX_LENGTH; j++) {
             arglist[i][j] = NULL;
@@ -135,7 +117,18 @@ int main (int argc, char *argv[]) {
                 //printf("second_arg = %s\n", second_arg);
 
                 if (!strcmp(arg, "exit") && (strsep(&command_line, " ") == NULL)) {
-                    EXIT_COMMAND(command_line, pathnames, num_paths_max);
+                    if (command_line) free(command_line);
+                    // Free exec path strings
+                    for (int i = 0; i < num_paths_max; i++) {
+                        free(pathnames[i]);
+                    }
+                    // Free arglist
+                    for (int i = 0; i < MAX_PROCESSES; i++) {
+                        for (int j = 0; j < MAX_LENGTH; j++) {
+                            if (arglist[i][j] != NULL) free(arglist[i][j]);
+                        }
+                    }
+                    exit(0);
                 }
 
                 // In-built cd command
