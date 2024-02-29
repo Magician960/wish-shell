@@ -28,6 +28,20 @@ void EXIT_COMMAND(char *command_line, char *pathnames[], int num_paths_max) {
     exit(0);
 }
 
+bool CD_COMMAND(char *arg, char *command_line) {
+    char *newcwd;
+
+    if  (!strcmp(arg, "cd") && 
+        (newcwd = strsep(&command_line, " ")) != NULL && 
+        (strsep(&command_line, " ") == NULL)) 
+            {
+                assert(chdir(newcwd) == 0); 
+                return true;
+            }
+
+    return false;
+}
+
 int main (int argc, char *argv[]) {
     // general variables
     bool batch_mode = false;
@@ -39,7 +53,6 @@ int main (int argc, char *argv[]) {
     char exec_path[MAX_PROCESSES][MAX_LENGTH];
     char cwd[MAX_LENGTH];
     size_t nsize = MAX_LENGTH;
-    char *newcwd;
 
     // variables for parallel commands
     int process_num = 0;
@@ -138,15 +151,7 @@ int main (int argc, char *argv[]) {
                 }
 
                 // In-built cd command
-
-                if  (!strcmp(arg, "cd") && 
-                    (newcwd = strsep(&command_line, " ")) != NULL && 
-                    (strsep(&command_line, " ") == NULL)) 
-                {
-                    assert(chdir(newcwd) == 0); 
-                    in_built_cmd = true;
-                    break;
-                }
+                if ((in_built_cmd = CD_COMMAND(arg, command_line)) == true) break;
 
                 // In-built path command
                 if (!strcmp(arg, "path")) {
