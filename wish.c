@@ -70,7 +70,7 @@ int main (int argc, char *argv[]) {
         counter = 0;
         process_num = 0;
         first_arg = true;
-        valid_path = true;
+        valid_path = false;
         in_built_cmd = false;
         getcwd(cwd, MAX_LENGTH);
     
@@ -169,8 +169,8 @@ int main (int argc, char *argv[]) {
                     strcat(exec_path[process_num], "/");
                     strcat(exec_path[process_num], arg);
 
-                    if (access(exec_path[process_num], F_OK) != 0) {
-                        valid_path = false;
+                    if (access(exec_path[process_num], F_OK) == 0) {
+                        valid_path = true;
                         break;
                     } 
                 }
